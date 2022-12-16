@@ -5,7 +5,9 @@ import TaskForm from "./TaskForm"
 import axios from "axios";
 import { URL } from "../App";
 import loadingImg from "../assets/loader.gif";
-//import { set } from "mongoose";
+import Pusher from "pusher-js";
+
+//Pusher.logToConsole = true;
 
 const TaskList = () => {
     const [tasks, setTasks] = useState([]);
@@ -13,6 +15,11 @@ const TaskList = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [taskID, setTaskID] = useState("");
+
+    //pusher
+    const [pusherChannel, setPusherChannel] = useState(null);
+    const [dataPusher, setDataPusher] = useState(1);
+
     const [formData, setFormData] = useState({
         name: "",
         completed: false
@@ -37,9 +44,28 @@ const TaskList = () => {
         }
     };
 
+    // TRIGGERED ON MOUNT
     useEffect(() => {
+        //console.log("not pusher")
         getTasks()
-    },[])
+    }, []);
+    
+    useEffect(() => {
+        //console.log("pusher")
+        const pusher = new Pusher("d70a8216dbd129b8d9ed", {
+          cluster: "ap1",
+        });
+        const channel = pusher.subscribe("my-channel");
+        channel.bind("my-event",(data) => {
+            console.log(data)
+            getTasks()
+        });
+        return () => {
+          channel.unbind_all();
+          channel.unsubscribe();
+        };
+        
+      }, [dataPusher]);
 
     const createTask = async (e) => {
         e.preventDefault();
@@ -50,6 +76,8 @@ const TaskList = () => {
             await axios.post(`${URL}/api/tasks`,formData)
             toast.success("Task added successfully")
             setFormData({...formData, name: ""})
+            setDataPusher(dataPusher+1)
+            console.log(dataPusher)
             getTasks()
         } catch (error) {
             toast.error(error.message);
